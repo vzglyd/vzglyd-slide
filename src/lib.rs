@@ -662,7 +662,11 @@ impl<V: Pod> SlideSpec<V> {
             .iter()
             .map(|mesh| mesh.vertices.len() as u32)
             .sum();
-        let dynamic_vertices: u32 = self.dynamic_meshes.iter().map(|mesh| mesh.max_vertices).sum();
+        let dynamic_vertices: u32 = self
+            .dynamic_meshes
+            .iter()
+            .map(|mesh| mesh.max_vertices)
+            .sum();
         static_vertices.saturating_add(dynamic_vertices)
     }
 
