@@ -29,7 +29,7 @@ It does not cover `VRX-64-sidecar`, which is versioned independently.
 
 The engine validates slide compatibility at load time using the manifest's `abi_version` and the slide module's exported `vzglyd_abi_version()` symbol.
 
-Current ABI version: `1`
+Current ABI version: `2`
 
 Compatibility guarantees:
 
@@ -37,6 +37,54 @@ Compatibility guarantees:
 - an engine release may support multiple ABI versions during a transition window
 - the default policy is to support the current ABI version and, when a breaking ABI ships, the previous ABI version for one compatibility window
 - a slide compiled against ABI version 1 remains compatible with any engine release that still accepts ABI version 1
+
+## ABI Version History
+
+### ABI Version 2
+
+**Breaking change.** Added audio playback support. The version was bumped because existing ABI 1
+engines cannot safely load ABI 2 slides — doing so would corrupt memory or trap at load time.
+
+Why this is breaking (not additive):
+
+1. **`SlideSpec` postcard layout changed.** A new `sounds: Vec<SoundDesc>` field was inserted
+   between `textures` and `static_meshes`. Postcard is position-dependent: an ABI 1 engine
+   deserializing an ABI 2 spec would interpret raw MP3 bytes as `TextureDesc` structs, producing
+   garbage dimensions, invalid format enums, and out-of-bounds memory access.
+
+2. **New WASM imports required.** Slides compiled against ABI 2 import `audio_play`,
+   `audio_stop`, `audio_set_volume`, `audio_pause`, and `audio_resume` from the `vzglyd_host`
+   module. Wassttime rejects WASM modules with unresolved imports, so an ABI 1 host cannot
+   even instantiate an ABI 2 slide — it fails at load time with a clear error rather than
+   silently misbehaving.
+
+3. **Manifest bundle structure changed.** The pack command now collects sound files from
+   `manifest.json` and embeds them into the `.vzglyd` archive. Old engines that don't
+   understand the `sounds` array would produce archives missing audio data, causing runtime
+   "asset not found" errors.
+
+Changes introduced:
+
+- New `sounds: Vec<SoundDesc>` field in `SlideSpec` (after `textures`, before `static_meshes`)
+- New `SoundFormat` enum (`Mp3`, `Wav`, `Ogg`, `Flac`)
+- New `SoundDesc` struct (`key`, `format`, `data`)
+- New host imports in the `vzglyd_host` module:
+  - `audio_play(id: u32, key_ptr, key_len, volume: f32, looped: i32) -> i32`
+  - `audio_stop(id: u32) -> i32`
+  - `audio_set_volume(id: u32, volume: f32) -> i32`
+  - `audio_pause(id: u32) -> i32`
+  - `audio_resume(id: u32) -> i32`
+- New guest-side helper functions: `play_sound()`, `stop_sound()`, `set_volume()`, `pause_sound()`, `resume_sound()`
+- New `manifest.json` asset type: `sounds` array with `SoundAssetRef` entries
+
+### ABI Version 1
+
+Initial public ABI with rendering support:
+
+- Required exports: `vzglyd_abi_version`, `vzglyd_spec_ptr`, `vzglyd_spec_len`, `vzglyd_init`, `vzglyd_update`
+- Optional exports: `vzglyd_params_ptr`, `vzglyd_params_capacity`, `vzglyd_configure`, `vzglyd_overlay_ptr`, `vzglyd_overlay_len`, `vzglyd_dynamic_meshes_ptr`, `vzglyd_dynamic_meshes_len`, `vzglyd_teardown`
+- Host imports: `channel_poll`, `channel_active`, `log_info`, `mesh_asset_len`, `mesh_asset_read`, `scene_metadata_len`, `scene_metadata_read`, `trace_span_start`, `trace_span_end`, `trace_event`
+- `SlideSpec` with textures, static meshes, dynamic meshes, draws, lighting
 
 ## What Counts As Breaking
 

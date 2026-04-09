@@ -37,6 +37,52 @@
 //! tells the engine that geometry is unchanged and can be reused. Returning `1` tells the
 //! engine to fetch updated geometry and upload fresh buffers for the next frame.
 //!
+//! ## Audio
+//!
+//! Slides can play embedded sound assets (MP3, WAV, Ogg, FLAC). Declare sounds in
+//! your `manifest.json` under `assets.sounds`, then use the audio functions to control
+//! playback:
+//!
+//! ```ignore
+//! use vzglyd_slide::{play_sound, stop_sound, set_volume, pause_sound, resume_sound};
+//!
+//! // Play a sound effect (ID 1, key "click", full volume, no loop)
+//! play_sound(1, "click", 1.0, false);
+//!
+//! // Loop background music (ID 2, key "bgm", 30% volume)
+//! play_sound(2, "bgm", 0.3, true);
+//!
+//! // Control playback
+//! set_volume(2, 0.5);  // change volume
+//! pause_sound(2);      // pause
+//! resume_sound(2);     // resume
+//! stop_sound(2);       // stop
+//! ```
+//!
+//! See [`AUDIO_GUIDE.md`](../AUDIO_GUIDE.md) for a complete walkthrough.
+//!
+//! ## Why ABI Version 2?
+//!
+//! The ABI was bumped from `1` to `2` because audio support introduces **breaking changes**
+//! that are not backward-compatible:
+//!
+//! 1. **`SlideSpec` serialization changed** — A new `sounds: Vec<SoundDesc>` field was added
+//!    between `textures` and `static_meshes`. An engine expecting ABI 1 would deserialize
+//!    the wrong fields (reading sound data as texture pointers), causing memory corruption or
+//!    crashes.
+//!
+//! 2. **New host FFI imports** — The `vzglyd_host` module now imports `audio_play`,
+//!    `audio_stop`, `audio_set_volume`, `audio_pause`, and `audio_resume`. An old host
+//!    that doesn't export these functions would trap the WASM module on load.
+//!
+//! 3. **Manifest structure changed** — `manifest.json` now accepts a `sounds` array under
+//!    `assets`. Old engines would ignore it, but the engine must understand it to bundle
+//!    the sound data into the `.vzglyd` archive.
+//!
+//! Because of (1) and (2), the change is **not backward-compatible**. The engine rejects
+//! slides whose declared ABI version it doesn't recognise, so old slides (ABI 1) still
+//! work and new slides (ABI 2) are only loaded by engines that support audio.
+//!
 //! See the crate README for a packaging overview, and [`ABI_POLICY.md`](../ABI_POLICY.md) for
 //! the versioning and compatibility contract.
 
@@ -48,6 +94,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 mod trace;
+mod audio;
 
 pub use trace::{
     TraceScope, trace_event, trace_event_with_attrs, trace_scope, trace_scope_with_attrs,
@@ -55,8 +102,10 @@ pub use trace::{
 #[doc(hidden)]
 pub use trace::{traced_configure_entrypoint, traced_init_entrypoint, traced_update_entrypoint};
 
+pub use audio::{pause_sound, play_sound, resume_sound, set_volume, stop_sound};
+
 /// Current slide ABI version understood by this crate and the engine.
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 /// Resource and geometry limits a slide is allowed to consume.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -386,6 +435,33 @@ pub struct GlyphInfo {
     pub v1: f32,
 }
 
+/// Audio format supported for embedded sound assets.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SoundFormat {
+    /// MP3 audio format.
+    Mp3,
+    /// WAV (PCM) audio format.
+    Wav,
+    /// Ogg Vorbis audio format.
+    Ogg,
+    /// FLAC lossless audio format.
+    Flac,
+}
+
+/// Description of an embedded sound asset in a slide bundle.
+///
+/// Sound data is embedded directly into the `.vzglyd` bundle alongside
+/// textures and meshes, following the same pattern as [`TextureDesc`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SoundDesc {
+    /// Unique asset key used to reference this sound (e.g., `"notify.mp3"`).
+    pub key: String,
+    /// Audio format of the embedded data.
+    pub format: SoundFormat,
+    /// Raw audio bytes (MP3, WAV, Ogg, or FLAC).
+    pub data: Vec<u8>,
+}
+
 /// Named anchor extracted from an imported scene asset.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SceneAnchor {
@@ -512,6 +588,8 @@ pub struct SlideSpec<V: Pod> {
     pub textures_used: u32,
     /// Texture payloads embedded in the package.
     pub textures: Vec<TextureDesc>,
+    /// Sound payloads embedded in the package.
+    pub sounds: Vec<SoundDesc>,
     /// Static meshes uploaded once when the slide loads.
     pub static_meshes: Vec<StaticMesh<V>>,
     /// Dynamic meshes whose vertices may change at runtime.
@@ -1191,6 +1269,7 @@ mod tests {
                 mip_filter: FilterMode::Nearest,
                 data: vec![255, 255, 255, 255],
             }],
+            sounds: vec![],
             static_meshes: vec![StaticMesh {
                 label: "m".to_string(),
                 vertices: vec![V { pos: [0.0; 3] }; 4],

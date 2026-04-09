@@ -49,4 +49,5 @@ Slides do not own a browser player shell. Web playback and profiling live in `VR
 Further reading:
 
 - [ABI policy](./ABI_POLICY.md)
+- [Audio guide](./AUDIO_GUIDE.md) — adding sounds (MP3, WAV, Ogg, FLAC) to your slide
 - [Slide authoring guide](https://github.com/vzglyd/vzglyd/blob/main/docs/authoring-guide.md)
