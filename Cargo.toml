@@ -27,3 +27,11 @@ wgpu = { version = "23", optional = true }
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
+
+# Reduce build artifact sizes
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.release]
+strip = true

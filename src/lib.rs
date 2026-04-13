@@ -93,8 +93,8 @@ use bytemuck::Pod;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-mod trace;
 mod audio;
+mod trace;
 
 pub use trace::{
     TraceScope, trace_event, trace_event_with_attrs, trace_scope, trace_scope_with_attrs,

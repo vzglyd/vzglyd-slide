@@ -11,13 +11,7 @@ use std::ffi::CString;
 #[link(wasm_import_module = "vzglyd_host")]
 unsafe extern "C" {
     #[link_name = "audio_play"]
-    fn host_audio_play(
-        id: u32,
-        key_ptr: *const u8,
-        key_len: i32,
-        volume: f32,
-        looped: i32,
-    ) -> i32;
+    fn host_audio_play(id: u32, key_ptr: *const u8, key_len: i32, volume: f32, looped: i32) -> i32;
 
     #[link_name = "audio_stop"]
     fn host_audio_stop(id: u32) -> i32;
@@ -46,7 +40,13 @@ pub fn play_sound(id: u32, key: &str, volume: f32, looped: bool) -> i32 {
     unsafe {
         let c_key = CString::new(key).unwrap_or_default();
         let bytes = c_key.as_bytes();
-        host_audio_play(id, bytes.as_ptr(), bytes.len() as i32, volume, looped as i32)
+        host_audio_play(
+            id,
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            volume,
+            looped as i32,
+        )
     }
 
     #[cfg(not(target_arch = "wasm32"))]
