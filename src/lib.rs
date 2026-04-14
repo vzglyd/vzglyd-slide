@@ -135,8 +135,8 @@ impl Limits {
             max_static_meshes: 10,
             max_dynamic_meshes: 10,
             max_textures: 4,
-            max_texture_bytes: 512 * 512 * 4 * 4, // up to four 512² RGBA8 textures
-            max_texture_dim: 512,
+            max_texture_bytes: 640 * 640 * 4 * 4, // up to four 640² RGBA8 textures
+            max_texture_dim: 640,
         }
     }
 }
@@ -153,7 +153,7 @@ pub struct StaticMesh<V: Pod> {
     /// Vertex payload uploaded once when the slide is loaded.
     pub vertices: Vec<V>,
     /// Triangle index data for the mesh.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 /// Dynamic mesh where vertices are rewritten every frame but index order is fixed.
@@ -164,7 +164,7 @@ pub struct DynamicMesh {
     /// Maximum number of vertices the slide may upload for this mesh.
     pub max_vertices: u32,
     /// Static index order used for every frame update.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 /// Fixed render pipeline selection for a draw call.
@@ -364,7 +364,7 @@ pub struct RuntimeOverlay<V: Pod> {
     /// Overlay vertices rendered over the main scene.
     pub vertices: Vec<V>,
     /// Triangle indices for the overlay.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 /// Runtime-updated mesh payload for a specific dynamic mesh slot.
@@ -404,7 +404,7 @@ pub struct MeshAsset {
     /// Mesh vertices.
     pub vertices: Vec<MeshAssetVertex>,
     /// Mesh triangle indices.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 /// Runtime font atlas used by text-capable slides.
