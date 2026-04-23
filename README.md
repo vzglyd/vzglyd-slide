@@ -26,8 +26,9 @@ vzglyd_slide::export_traced_entrypoints! {
 ```
 
 Slides read host-provided data through `channel_poll`. In the native runtime,
-those bytes come from the watched JSON file configured by `playlist.json ->
-slides[].data_path` or `--scene --data-path`.
+those bytes come from the watched mission record configured by
+`playlist.json -> slides[].mission_name`, resolved under
+`~/.brrmmmm/missions/<mission_name>/<mission_name>.out.json`.
 
 ## Tracing
 
